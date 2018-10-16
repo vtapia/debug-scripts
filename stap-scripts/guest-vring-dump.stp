@@ -1,0 +1,27 @@
+#!/usr/bin/stap -g
+
+%{
+#include <linux/virtio.h>
+#include <linux/virtio_ring.h>
+#include <linux/virtio_config.h>
+%}
+
+#vring_virtqueue (last_used_idx, vq, data, vring, event, notify, num_added, broken, free_head, indirect, weak_barriers, avail_idx_shadow, avail_flags_shadow)
+#vring (num, desc, used, avail)
+
+
+function to_vvq:long(_vq:long){
+	vr =  &@container_of(_vq, "struct vring_virtqueue", vq)
+	println(vr->last_used_idx)
+	println(vr->vring->desc->addr)
+}
+
+
+probe kernel.function("virtqueue_get_buf").call { 
+	println(probefunc() . " VQ: " . @var("_vq")$$)
+
+	@container_of($_vq, "struct vring_virtqueue", vq)
+	println($_vq$$)
+	to_vvq($_vq);
+}
+

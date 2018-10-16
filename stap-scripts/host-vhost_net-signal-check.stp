@@ -1,0 +1,44 @@
+#!/usr/bin/stap -g
+
+# The following evaluations in vhost.c determine if the guest will be signalled
+# after the work in the VQ has finished. Original code:
+
+/* We're sure if the following conditions are met, there's no
+* need to notify guest:
+* 1) cached used event is ahead of new
+* 2) old to new updating does not cross cached used event. */
+# if (vring_need_event(vq->last_used_event, new + vq->num, new) &&
+#    !vring_need_event(vq->last_used_event, new, old))
+#	return false;
+
+
+
+function findqemupid:string(worker) {
+      worker_execname = pid2execname(worker)
+      return substr(worker_execname, 6, strlen(worker_execname))
+}
+
+
+probe module("vhost").function("vhost_signal"){
+   	old = $vq->signalled_used
+        new = $vq->last_used_idx
+        event = $vq->last_used_event
+
+        cond1 = new + $vq->num - event - 1
+        cond2 = new - event - 1
+
+	# Monitor only the host-tx/guest-rx VQ
+	if ($vq->desc->addr == $dev->vqs[0]->desc->addr){
+
+		# Port the code evaluations to stap
+		if ((cond1) < $vq->num) {
+		        if ((cond2) > (new - old)) {
+				printf("VQ %u is not being signalled! QEMU process PID: %s\n", $vq->desc->addr, findqemupid($vq->dev->worker->pid))
+				printf("[%s]: vq->desc->addr=%lu new=%u old=%u vq->last_used_event=%u vring_avail=%u \n", probefunc(), $vq->desc->addr, new, old, event, $vq->avail->idx )
+		        }
+		}
+	}
+
+	# Debug
+	# printf("[%s]: vq->desc->addr=%lu new=%u old=%u vq->last_used_event=%u vring_avail=%u \n", probefunc(), $vq->desc->addr, new, old, event, $vq->avail->idx )
+}

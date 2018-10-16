@@ -1,0 +1,44 @@
+#!/usr/bin/stap
+
+global vq_addrs
+global vq_last_avail
+global vq_last_used
+global vq_worker
+
+global count = 0
+
+probe begin {
+   ansi_clear_screen()
+}
+
+probe module("vhost").function("vhost_signal"){
+   # printf("vhost_get_vq_desc(): vq->num=%u vq->desc->addr=%lu vq->last_avail_idx=%u vq->last_used_idx=%u vq->last_used_event=%u vring_used=%u vring_avail=%u \n", $vq->num, $vq->desc->addr, $vq->last_avail_idx, $vq->last_used_idx, $vq->last_used_event, $vq->used->idx, $vq->avail->idx )
+   
+   for (i=0; i<count; i++) {
+      if (vq_addrs[i] == $vq->desc->addr) {
+         # printf("Addr found, updating!\n")
+         vq_last_avail[i] = $vq->last_avail_idx
+         vq_last_used[i] = $vq->last_used_idx
+	 vq_used_event[i] = $vq->last_used_event
+         vq_worker[i] = $vq->dev->worker->pid
+         next;
+      }
+   }
+   # printf("Addr not found, adding!\n")
+   vq_addrs[count++] = $vq->desc->addr
+   
+}
+
+probe timer.s(5), end {
+   ansi_clear_screen()
+   printf("Last update: %s\n\n", ctime(gettimeofday_s()))
+   for (i=0; i<count; i++) {
+      worker_execname = pid2execname(vq_worker[i])
+      qemu_pid = strtol(substr(worker_execname, 6, strlen(worker_execname)), 10)
+      printf("\tVQ[%d] Worker_PID=%d QEMU_PID=%d Addr %lu last_avail_idx=%u last_used_idx=%u last_used_event=%u\n", i, vq_worker[i], qemu_pid,  vq_addrs[i], vq_last_avail[i], vq_last_used[i], vq_used_event[i])
+   }
+   delete vq_addrs
+   delete vq_last_avail
+   delete vq_last_used
+   count=0
+}
