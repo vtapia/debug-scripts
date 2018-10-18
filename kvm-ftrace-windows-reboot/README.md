@@ -4,7 +4,7 @@ Set of scripts to capture the kernel work (vhost/kvm/virtio...) during a Windows
 
 ## How to set the environment
 
-1. Guest: Enable WinRM
+#### 1. Guest: Enable WinRM
 
 From a powershell interface, run the following commands:
 
@@ -17,7 +17,7 @@ winrm set winrm/config/service '@{AllowUnencrypted="true"}'
 restart-Service winrm
 ```
 
-2. Hypervisor: Kernel with debugfs enabled to use ftrace
+#### 2. Hypervisor: Kernel with debugfs enabled to use ftrace
 
 Make sure debugfs/tracefs is mounted:
 
@@ -34,7 +34,7 @@ mount -t debugfs nodev /sys/kernel/debug
 mount -t tracefs nodev /sys/kernel/debug/tracing
 ```
 
-3. Hypervisor: install PyWinRM (and its requirements) to run remote commands to the Windows guest
+#### 3. Hypervisor: install PyWinRM (and its requirements) to run remote commands to the Windows guest
 
 Install python-pip:
 
@@ -74,7 +74,7 @@ Install pywinrm using pip:
 pip install pywinrm
 ```
 
-4. Download the scripts from this repo and run
+#### 4. Download the scripts from this repo and run
 
 ```
 cd /tmp ; git clone https://github.com/vtapia/debug-scripts.git
